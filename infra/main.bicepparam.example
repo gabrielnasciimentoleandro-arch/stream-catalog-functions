@@ -1,0 +1,5 @@
+using './main.bicep'
+
+param projectName = 'streamcatalog'
+param environmentName = 'dev'
+param location = 'brazilsouth'

@@ -1,0 +1,47 @@
+@baseUrl = http://localhost:7071
+@functionKey = LOCAL-HOST-DOES-NOT-REQUIRE-A-KEY
+@catalogId = REPLACE-WITH-CATALOG-ID
+@coverFileName = REPLACE-WITH-COVER-FILE-NAME
+
+### Service metadata
+GET {{baseUrl}}/api/v1
+
+### OpenAPI document
+GET {{baseUrl}}/api/v1/openapi
+
+### Health
+GET {{baseUrl}}/api/v1/health
+
+### Upload cover — replace the body with binary content in your HTTP client
+POST {{baseUrl}}/api/v1/covers?fileName=arrival.png
+Content-Type: image/png
+x-functions-key: {{functionKey}}
+
+< ./arrival.png
+
+### Create catalog item
+POST {{baseUrl}}/api/v1/catalog
+Content-Type: application/json
+x-functions-key: {{functionKey}}
+
+{
+  "title": "Arrival",
+  "synopsis": "A linguist works with visitors from another world.",
+  "type": "movie",
+  "genres": ["Science Fiction", "Drama"],
+  "releaseYear": 2016,
+  "ageRating": "12",
+  "coverFileName": "{{coverFileName}}"
+}
+
+### List catalog
+GET {{baseUrl}}/api/v1/catalog?page=1&pageSize=20
+
+### Search by several filters
+GET {{baseUrl}}/api/v1/catalog/search?title=Arrival&genre=Science%20Fiction&type=movie&releaseYear=2016
+
+### Get catalog item
+GET {{baseUrl}}/api/v1/catalog/items/{{catalogId}}
+
+### Download cover
+GET {{baseUrl}}/api/v1/covers/{{coverFileName}}
