@@ -1,0 +1,112 @@
+name: Deploy to Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environmentName:
+        description: Deployment environment
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+      location:
+        description: Azure region
+        required: true
+        default: brazilsouth
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: stream-catalog-${{ inputs.environmentName }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: 'true'
+  PROJECT_NAME: streamcatalog
+  RESOURCE_GROUP: rg-stream-catalog-${{ inputs.environmentName }}
+
+jobs:
+  deploy:
+    name: Provision and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: ${{ inputs.environmentName }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate OIDC configuration
+        env:
+          CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        shell: bash
+        run: |
+          test -n "$CLIENT_ID"
+          test -n "$TENANT_ID"
+          test -n "$SUBSCRIPTION_ID"
+
+      - name: Log in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Restore and publish
+        shell: bash
+        run: |
+          dotnet restore --locked-mode
+          dotnet publish \
+            src/StreamCatalog.Functions/StreamCatalog.Functions.csproj \
+            --configuration Release \
+            --no-restore \
+            --output artifacts/function
+
+      - name: Provision Azure resources
+        shell: bash
+        run: |
+          az group show --name "$RESOURCE_GROUP" --output none
+
+          function_app_name=$(az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters \
+              projectName="$PROJECT_NAME" \
+              environmentName="${{ inputs.environmentName }}" \
+              location="${{ inputs.location }}" \
+            --query 'properties.outputs.functionAppName.value' \
+            --output tsv)
+
+          test -n "$function_app_name"
+          echo "FUNCTION_APP_NAME=$function_app_name" >> "$GITHUB_ENV"
+
+      - name: Deploy Function App package
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.FUNCTION_APP_NAME }}
+          package: artifacts/function
+
+      - name: Verify health endpoint
+        shell: bash
+        run: |
+          curl --fail --silent --show-error \
+            --retry 12 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            "https://${FUNCTION_APP_NAME}.azurewebsites.net/api/v1/health"
