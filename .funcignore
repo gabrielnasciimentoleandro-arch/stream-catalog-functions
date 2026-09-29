@@ -1,0 +1,14 @@
+.git/
+.github/
+.vs/
+.vscode/
+tests/
+docs/
+infra/
+scripts/
+TestResults/
+**/bin/
+**/obj/
+*.md
+*.sln
+local.settings.json

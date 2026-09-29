@@ -1,0 +1,479 @@
+openapi: 3.0.3
+info:
+  title: Stream Catalog Functions API
+  version: 1.0.0
+  description: >-
+    Serverless API for cover upload and streaming-catalog metadata. Write
+    operations use an Azure Functions key in deployed environments.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:7071
+    description: Local Azure Functions host
+
+tags:
+  - name: Service
+  - name: Catalog
+  - name: Covers
+
+paths:
+  /api/v1:
+    get:
+      tags: [Service]
+      summary: Get service metadata
+      operationId: getServiceMetadata
+      responses:
+        '200':
+          description: Service metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceMetadata'
+
+  /api/v1/openapi:
+    get:
+      tags: [Service]
+      summary: Download the OpenAPI contract
+      operationId: getOpenApi
+      responses:
+        '200':
+          description: OpenAPI YAML document
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+  /api/v1/health:
+    get:
+      tags: [Service]
+      summary: Check Function App health
+      operationId: getHealth
+      responses:
+        '200':
+          description: Healthy service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /api/v1/catalog:
+    get:
+      tags: [Catalog]
+      summary: List catalog items
+      operationId: listCatalogItems
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags: [Catalog]
+      summary: Create a catalog item
+      operationId: createCatalogItem
+      security:
+        - functionKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCatalogItem'
+            example:
+              title: Arrival
+              synopsis: A linguist works with visitors from another world.
+              type: movie
+              genres: [Science Fiction, Drama]
+              releaseYear: 2016
+              ageRating: '12'
+              coverFileName: 0123456789abcdef0123456789abcdef.jpg
+      responses:
+        '201':
+          description: Catalog item created
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/catalog/search:
+    get:
+      tags: [Catalog]
+      summary: Search and filter catalog items
+      operationId: searchCatalogItems
+      description: At least one search filter is required.
+      parameters:
+        - name: title
+          in: query
+          schema:
+            type: string
+            maxLength: 120
+        - name: genre
+          in: query
+          schema:
+            type: string
+            maxLength: 40
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/CatalogItemType'
+        - name: releaseYear
+          in: query
+          schema:
+            type: integer
+            minimum: 1888
+            maximum: 9999
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Filtered paginated catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/catalog/items/{id}:
+    get:
+      tags: [Catalog]
+      summary: Get one catalog item
+      operationId: getCatalogItem
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{32}$'
+      responses:
+        '200':
+          description: Catalog item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/covers:
+    post:
+      tags: [Covers]
+      summary: Upload a private catalog cover
+      operationId: uploadCover
+      security:
+        - functionKey: []
+      parameters:
+        - name: fileName
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          example: arrival.jpg
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: Cover uploaded
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoverUpload'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          description: File exceeds 5 MiB
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '415':
+          description: Unsupported image type
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  /api/v1/covers/{fileName}:
+    get:
+      tags: [Covers]
+      summary: Download a private cover through the API
+      operationId: getCover
+      parameters:
+        - name: fileName
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{32}\.(jpg|png|webp)$'
+      responses:
+        '200':
+          description: Cover bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    functionKey:
+      type: apiKey
+      in: header
+      name: x-functions-key
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+        maximum: 1000
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+    CatalogItemType:
+      type: string
+      enum: [movie, series]
+
+    CreateCatalogItem:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - synopsis
+        - type
+        - genres
+        - releaseYear
+        - ageRating
+      properties:
+        title:
+          type: string
+          minLength: 2
+          maxLength: 120
+        synopsis:
+          type: string
+          minLength: 10
+          maxLength: 1000
+        type:
+          $ref: '#/components/schemas/CatalogItemType'
+        genres:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        releaseYear:
+          type: integer
+          minimum: 1888
+        ageRating:
+          type: string
+          enum: ['L', '10', '12', '14', '16', '18']
+        seasons:
+          type: integer
+          minimum: 1
+          maximum: 100
+          nullable: true
+        coverFileName:
+          type: string
+          pattern: '^[0-9a-fA-F]{32}\.(jpg|png|webp)$'
+          nullable: true
+
+    CatalogItem:
+      type: object
+      required:
+        - id
+        - title
+        - synopsis
+        - type
+        - genres
+        - releaseYear
+        - ageRating
+        - createdAt
+      properties:
+        id:
+          type: string
+          pattern: '^[0-9a-f]{32}$'
+        title:
+          type: string
+        synopsis:
+          type: string
+        type:
+          $ref: '#/components/schemas/CatalogItemType'
+        genres:
+          type: array
+          items:
+            type: string
+        releaseYear:
+          type: integer
+        ageRating:
+          type: string
+        seasons:
+          type: integer
+          nullable: true
+        coverFileName:
+          type: string
+          nullable: true
+        coverUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CatalogPage:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogItem'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+
+    CoverUpload:
+      type: object
+      required: [fileName, originalFileName, contentType, length, downloadUrl]
+      properties:
+        fileName:
+          type: string
+        originalFileName:
+          type: string
+        contentType:
+          type: string
+        length:
+          type: integer
+          format: int64
+        downloadUrl:
+          type: string
+
+    ServiceMetadata:
+      type: object
+      required: [name, version, documentation, health]
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        documentation:
+          type: string
+        health:
+          type: string
+
+    Health:
+      type: object
+      required: [status, timestamp, providers]
+      properties:
+        status:
+          type: string
+          enum: [Healthy]
+        timestamp:
+          type: string
+          format: date-time
+        providers:
+          type: object
+          additionalProperties:
+            type: string
+
+    ProblemDetails:
+      type: object
+      required: [status, title, detail, type, instance, code, traceId]
+      properties:
+        status:
+          type: integer
+        title:
+          type: string
+        detail:
+          type: string
+        type:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+        traceId:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string

@@ -1,0 +1,39 @@
+# .NET
+**/bin/
+**/obj/
+artifacts/
+TestResults/
+coverage/
+*.user
+*.suo
+
+# Azure Functions local settings
+local.settings.json
+.azure/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.pem
+*.publishsettings
+
+# Azurite
+.azurite/
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+
+# Editors and operating systems
+.vs/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs and packages
+*.log
+*.zip
+*.tgz

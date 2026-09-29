@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Include>[StreamCatalog.Functions]*</Include>
+          <Exclude>[StreamCatalog.Functions.Tests]*</Exclude>
+          <ExcludeByFile>**/Program.cs,**/Repositories/BlobCoverStorage.cs,**/Repositories/CosmosCatalogRepository.cs,**/obj/**</ExcludeByFile>
+          <UseSourceLink>true</UseSourceLink>
+          <SingleHit>false</SingleHit>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
