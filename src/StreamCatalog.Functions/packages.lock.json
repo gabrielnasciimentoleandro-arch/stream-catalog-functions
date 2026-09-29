@@ -64,9 +64,9 @@
       },
       "Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore": {
         "type": "Direct",
-        "requested": "[2.1.0, )",
-        "resolved": "2.1.0",
-        "contentHash": "mVspzNJnTeeJg9k0Le8ca+38VSvNOrUlssZ6I0JFqLL+SC37qRlonJXVGU+eU2k6XSwnjkGEkdZxmkuwwZxDBw==",
+        "requested": "[2.1.1, )",
+        "resolved": "2.1.1",
+        "contentHash": "GrgsfLuJOlWGPVY3liqlZn9ZqQEI2/2h5jyNUqfvEanRq3hAw5PzzOdMED+iBCSDHZ33zOJjCEb+HJX5aOS0wg==",
         "dependencies": {
           "Microsoft.Azure.Functions.Worker": "2.1.0",
           "Microsoft.Azure.Functions.Worker.Extensions.Abstractions": "1.3.0",
